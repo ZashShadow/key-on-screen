@@ -6,10 +6,20 @@
 
 It was mainly made to play slow paced 2d Games like, Stardrew Valley, or some story based game, although i have managed to beat Mantis Lords on it ;)
 
+The UI is currently optimized for my 13.3 Inch ThinkPad.
+
 ---
+## Screenshot:
 
+![Overlay Screenshot](public/ss.png)
 
+## How To Use:
+- Open the exe file and maximize the window.
+- Open the Game you want to play and set the screen to **Borderless fullscreen.**
+-  Bind the on screen keys to your game keys.
+- For proper working, always make sure the game window is in focus, you can do so by pressing the window key and selecting your game from the taskbar, the overlay is set to always be on Top.
 
+---
 ## ⚡ Features
 
 - 🎯 **Transparent Window Overlay:** Stays on top of other applications with a frameless, transparent glassmorphism HUD design.
