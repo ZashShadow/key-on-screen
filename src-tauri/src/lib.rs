@@ -6,12 +6,33 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
+fn minimize_window(window: tauri::WebviewWindow) {
+    let _ = window.minimize();
+}
+
+#[tauri::command]
+fn toggle_maximize_window(window: tauri::WebviewWindow) {
+    if let Ok(is_max) = window.is_maximized() {
+        if is_max {
+            let _ = window.unmaximize();
+        } else {
+            let _ = window.maximize();
+        }
+    }
+}
+
+#[tauri::command]
+fn close_window(window: tauri::WebviewWindow) {
+    let _ = window.close();
+}
+
+#[tauri::command]
 fn send_key_input(key: &str, pressed: bool) {
     #[cfg(target_os = "windows")]
     {
         use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-            MapVirtualKeyW, MAPVK_VK_TO_VSC, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, SendInput,
-            INPUT, INPUT_KEYBOARD, KEYBDINPUT,
+            MapVirtualKeyW, MAPVK_VK_TO_VSC, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
+            KEYEVENTF_SCANCODE, SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT,
         };
 
         let key_str = key.to_uppercase();
@@ -56,7 +77,12 @@ fn send_key_input(key: &str, pressed: bool) {
         };
 
         let scan_code = unsafe { MapVirtualKeyW(vk_code as u32, MAPVK_VK_TO_VSC) } as u16;
+        let is_extended = matches!(vk_code, 0x25 | 0x26 | 0x27 | 0x28 | 0x2E);
+
         let mut flags = KEYEVENTF_SCANCODE;
+        if is_extended {
+            flags |= KEYEVENTF_EXTENDEDKEY;
+        }
         if !pressed {
             flags |= KEYEVENTF_KEYUP;
         }
@@ -65,7 +91,7 @@ fn send_key_input(key: &str, pressed: bool) {
             r#type: INPUT_KEYBOARD,
             Anonymous: windows_sys::Win32::UI::Input::KeyboardAndMouse::INPUT_0 {
                 ki: KEYBDINPUT {
-                    wVk: 0,
+                    wVk: vk_code,
                     wScan: scan_code,
                     dwFlags: flags,
                     time: 0,
@@ -125,11 +151,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            #[cfg(target_os = "windows")]
-            {
-                let previous_active_hwnd = unsafe { GetForegroundWindow() };
-
-                if let Some(window) = app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
+                #[cfg(target_os = "windows")]
+                {
+                    let previous_active_hwnd = unsafe { GetForegroundWindow() };
                     if let Ok(hwnd) = window.hwnd() {
                         let hwnd_ptr = hwnd.0 as windows_sys::Win32::Foundation::HWND;
                         unsafe {
@@ -158,7 +183,7 @@ pub fn run() {
                             SetWindowSubclass(hwnd_ptr, Some(overlay_subclass_proc), 1, 0);
                             EnumChildWindows(hwnd_ptr, Some(enum_child_proc), 0);
 
-                            // Instantly restore focus to the game/previous active window so user doesn't need to Alt-Tab or press Win key
+                            // Restore focus to game window on launch
                             if !previous_active_hwnd.is_null() && previous_active_hwnd != hwnd_ptr {
                                 SetForegroundWindow(previous_active_hwnd);
                             }
@@ -168,7 +193,13 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, send_key_input])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            send_key_input,
+            minimize_window,
+            toggle_maximize_window,
+            close_window
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

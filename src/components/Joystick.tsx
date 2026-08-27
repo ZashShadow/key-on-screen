@@ -1,37 +1,44 @@
 import React, { useRef, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
+export type JoystickMode = "wasd" | "arrows";
+
 interface JoystickProps {
   size?: number; // Outer diameter in px
   knobSize?: number; // Inner knob diameter in px
-  showTitle?: boolean;
-  title?: string;
+  mode?: JoystickMode;
+  isMapping?: boolean;
+  onToggleMode?: () => void;
 }
 
-// 8-direction sector helper
-function get8DirectionKeys(deg: number): string[] {
-  // deg is 0 to 360, where 0 is Right (D), 90 is Up (W), 180 is Left (A), 270 is Down (S)
-  if (deg >= 337.5 || deg < 22.5) return ["D"];
-  if (deg >= 22.5 && deg < 67.5) return ["W", "D"];
-  if (deg >= 67.5 && deg < 112.5) return ["W"];
-  if (deg >= 112.5 && deg < 157.5) return ["W", "A"];
-  if (deg >= 157.5 && deg < 202.5) return ["A"];
-  if (deg >= 202.5 && deg < 247.5) return ["S", "A"];
-  if (deg >= 247.5 && deg < 292.5) return ["S"];
-  if (deg >= 292.5 && deg < 337.5) return ["S", "D"];
+// 8-direction sector helper supporting WASD & Arrow Keys
+function get8DirectionKeys(deg: number, mode: JoystickMode = "wasd"): string[] {
+  const up = mode === "arrows" ? "UP" : "W";
+  const down = mode === "arrows" ? "DOWN" : "S";
+  const left = mode === "arrows" ? "LEFT" : "A";
+  const right = mode === "arrows" ? "RIGHT" : "D";
+
+  if (deg >= 337.5 || deg < 22.5) return [right];
+  if (deg >= 22.5 && deg < 67.5) return [up, right];
+  if (deg >= 67.5 && deg < 112.5) return [up];
+  if (deg >= 112.5 && deg < 157.5) return [up, left];
+  if (deg >= 157.5 && deg < 202.5) return [left];
+  if (deg >= 202.5 && deg < 247.5) return [down, left];
+  if (deg >= 247.5 && deg < 292.5) return [down];
+  if (deg >= 292.5 && deg < 337.5) return [down, right];
   return [];
 }
 
 export const Joystick: React.FC<JoystickProps> = ({
   size = 180,
   knobSize = 64,
-  showTitle = true,
-  title = "8-Way Joystick",
+  mode = "wasd",
+  isMapping = false,
+  onToggleMode,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [activeKeys, setActiveKeys] = useState<string[]>([]);
 
   // Ref to keep track of active keys synchronously during drag
   const currentKeysRef = useRef<Set<string>>(new Set());
@@ -55,10 +62,11 @@ export const Joystick: React.FC<JoystickProps> = ({
     }
 
     currentKeysRef.current = nextSet;
-    setActiveKeys(newKeysArr);
   }, []);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isMapping) return; // Don't activate key inputs while in mapping mode
+
     setIsDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
     handlePointerMove(e);
@@ -96,7 +104,7 @@ export const Joystick: React.FC<JoystickProps> = ({
 
     setKnobPos({ x: knobX, y: knobY });
 
-    const targetKeys = get8DirectionKeys(deg);
+    const targetKeys = get8DirectionKeys(deg, mode);
     updateKeys(targetKeys);
   };
 
@@ -111,36 +119,26 @@ export const Joystick: React.FC<JoystickProps> = ({
     updateKeys([]);
   };
 
-  const isKeyActive = (key: string) => activeKeys.includes(key);
-
   return (
-    <div className="flex flex-col items-center gap-2 select-none">
-      {showTitle && (
-        <span className="text-xs font-semibold text-slate-400 mb-1 tracking-wider uppercase">
-          {title}
-        </span>
+    <div className="flex flex-col items-center select-none">
+      {/* Interactive Mode Toggle Badge in Mapping Mode */}
+      {isMapping && (
+        <button
+          type="button"
+          onClick={onToggleMode}
+          className="mb-3 px-3 py-1 text-xs font-bold bg-slate-900/90 text-cyan-300 border border-cyan-500/50 rounded-xl hover:bg-cyan-500 hover:text-slate-950 transition-all cursor-pointer shadow-lg shadow-cyan-500/20 active:scale-95"
+        >
+          🕹️ Joystick: {mode === "wasd" ? "WASD" : "Arrow Keys (↑↓←→)"}
+        </button>
       )}
-      {/* Active Keys Badge Indicator */}
-      <div className="flex gap-1.5 h-7 items-center justify-center">
-        {["W", "A", "S", "D"].map((k) => (
-          <span
-            key={k}
-            className={`px-2 py-0.5 text-xs font-bold rounded transition-colors duration-150 ${
-              isKeyActive(k)
-                ? "bg-red-500 text-white shadow-lg shadow-red-500/50 scale-110"
-                : "bg-slate-800/80 text-slate-400 border border-slate-700/50"
-            }`}
-          >
-            {k}
-          </span>
-        ))}
-      </div>
 
       {/* Joystick Container */}
       <div
         ref={containerRef}
         style={{ width: size, height: size }}
-        className="relative rounded-full bg-slate-900/80 border-2 border-slate-700/60 backdrop-blur-md shadow-2xl flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
+        className={`relative rounded-full bg-slate-900/40 border-2 border-slate-700/40 backdrop-blur-md shadow-2xl flex items-center justify-center cursor-grab active:cursor-grabbing touch-none ${
+          isMapping ? "ring-2 ring-cyan-400/60 ring-offset-2 ring-offset-slate-950" : ""
+        }`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -148,44 +146,14 @@ export const Joystick: React.FC<JoystickProps> = ({
         onContextMenu={(e) => e.preventDefault()}
       >
         {/* Direction Indicator Rings/Crosshairs */}
-        <div className="absolute inset-0 rounded-full border border-slate-800 pointer-events-none" />
-        <div className="absolute w-full h-[1px] bg-slate-800/60 pointer-events-none" />
-        <div className="absolute h-full w-[1px] bg-slate-800/60 pointer-events-none" />
+        <div className="absolute inset-0 rounded-full border border-slate-800/40 pointer-events-none" />
+        <div className="absolute w-full h-[1px] bg-slate-800/40 pointer-events-none" />
+        <div className="absolute h-full w-[1px] bg-slate-800/40 pointer-events-none" />
 
         {/* Diagonal Direction Hints */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-[85%] h-[85%] rounded-full border border-dashed border-slate-700/30" />
+          <div className="w-[85%] h-[85%] rounded-full border border-dashed border-slate-700/20" />
         </div>
-
-        {/* Direction Labels */}
-        <span
-          className={`absolute top-2 text-[10px] font-bold ${
-            isKeyActive("W") ? "text-red-400 font-extrabold" : "text-slate-500"
-          }`}
-        >
-          W
-        </span>
-        <span
-          className={`absolute bottom-2 text-[10px] font-bold ${
-            isKeyActive("S") ? "text-red-400 font-extrabold" : "text-slate-500"
-          }`}
-        >
-          S
-        </span>
-        <span
-          className={`absolute left-2 text-[10px] font-bold ${
-            isKeyActive("A") ? "text-red-400 font-extrabold" : "text-slate-500"
-          }`}
-        >
-          A
-        </span>
-        <span
-          className={`absolute right-2 text-[10px] font-bold ${
-            isKeyActive("D") ? "text-red-400 font-extrabold" : "text-slate-500"
-          }`}
-        >
-          D
-        </span>
 
         {/* Joystick Movable Handle/Knob */}
         <div
@@ -196,8 +164,8 @@ export const Joystick: React.FC<JoystickProps> = ({
           }}
           className={`rounded-full shadow-xl flex items-center justify-center transition-transform duration-75 ease-out ${
             isDragging
-              ? "bg-gradient-to-br from-red-500 to-rose-600 border-2 border-red-300 shadow-red-500/40"
-              : "bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 shadow-black/50"
+              ? "bg-gradient-to-br from-red-500/90 to-rose-600/90 border-2 border-red-300 shadow-red-500/40"
+              : "bg-gradient-to-br from-slate-700/50 to-slate-800/50 border-2 border-slate-600/50 backdrop-blur-sm shadow-black/30"
           }`}
         >
           <div
