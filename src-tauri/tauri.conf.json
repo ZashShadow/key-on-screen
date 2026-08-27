@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "key-overlay",
+  "productName": "Key On Screen",
   "version": "0.1.0",
-  "identifier": "com.zgame.key-overlay",
+  "identifier": "com.zgame.key-on-screen",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "key-overlay",
+        "title": "Key On Screen",
         "width": 800,
         "height": 600,
         "transparent": true,

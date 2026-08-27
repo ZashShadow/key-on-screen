@@ -52,7 +52,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
       >
         <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-sm shadow-cyan-400/50 pointer-events-none" />
         <span data-tauri-drag-region className="text-xs uppercase tracking-widest text-slate-400 pointer-events-none">
-          Key Overlay
+          Key On Screen
         </span>
       </div>
 

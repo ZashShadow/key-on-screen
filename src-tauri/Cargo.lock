@@ -1912,7 +1912,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "key-overlay"
+name = "key-on-screen"
 version = "0.1.0"
 dependencies = [
  "serde",

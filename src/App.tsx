@@ -10,8 +10,8 @@ import {
 } from "./types/mappings";
 import "./App.css";
 
-const LOCAL_STORAGE_KEY = "key_overlay_mappings_v1";
-const JOYSTICK_MODE_KEY = "key_overlay_joystick_mode_v1";
+const LOCAL_STORAGE_KEY = "key_on_screen_mappings_v1";
+const JOYSTICK_MODE_KEY = "key_on_screen_joystick_mode_v1";
 
 function loadSavedMappings(): KeyMappingConfig {
   try {
@@ -121,7 +121,7 @@ function App() {
       )}
 
       {/* Left HUD: Floating 8-Directional Joystick */}
-      <div className="absolute bottom-10 left-28">
+      <div className="absolute bottom-20 left-28">
         <Joystick
           size={170}
           knobSize={60}
@@ -134,7 +134,7 @@ function App() {
       </div>
 
       {/* Right HUD: Floating 5-Key MOBA Cluster */}
-      <div className="absolute bottom-10 right-28">
+      <div className="absolute bottom-13 right-25">
         <FiveKeyCluster
           mappings={mappings}
           isMapping={isMappingMode}

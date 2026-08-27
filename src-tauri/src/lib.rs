@@ -79,7 +79,11 @@ fn send_key_input(key: &str, pressed: bool) {
         let scan_code = unsafe { MapVirtualKeyW(vk_code as u32, MAPVK_VK_TO_VSC) } as u16;
         let is_extended = matches!(vk_code, 0x25 | 0x26 | 0x27 | 0x28 | 0x2E);
 
-        let mut flags = KEYEVENTF_SCANCODE;
+        let mut flags = 0u32;
+        // Omit KEYEVENTF_SCANCODE for ESCAPE (0x1B) so Windows Shell in Tablet Mode doesn't map ESC to Start Menu
+        if vk_code != 0x1B {
+            flags |= KEYEVENTF_SCANCODE;
+        }
         if is_extended {
             flags |= KEYEVENTF_EXTENDEDKEY;
         }
