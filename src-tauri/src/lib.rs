@@ -14,39 +14,44 @@ fn send_key_input(key: &str, pressed: bool) {
             INPUT, INPUT_KEYBOARD, KEYBDINPUT,
         };
 
-        let vk_code: u16 = match key.to_uppercase().as_str() {
-            "A" => 0x41,
-            "B" => 0x42,
-            "C" => 0x43,
-            "D" => 0x44,
-            "E" => 0x45,
-            "F" => 0x46,
-            "G" => 0x47,
-            "H" => 0x48,
-            "I" => 0x49,
-            "J" => 0x4A,
-            "K" => 0x4B,
-            "L" => 0x4C,
-            "M" => 0x4D,
-            "N" => 0x4E,
-            "O" => 0x4F,
-            "P" => 0x50,
-            "Q" => 0x51,
-            "R" => 0x52,
-            "S" => 0x53,
-            "T" => 0x54,
-            "U" => 0x55,
-            "V" => 0x56,
-            "W" => 0x57,
-            "X" => 0x58,
-            "Y" => 0x59,
-            "Z" => 0x5A,
+        let key_str = key.to_uppercase();
+        let vk_code: u16 = match key_str.as_str() {
             "SPACE" => 0x20,
             "ENTER" => 0x0D,
             "SHIFT" => 0x10,
-            "CTRL" => 0x11,
+            "CTRL" | "CONTROL" => 0x11,
             "ALT" => 0x12,
-            "ESCAPE" => 0x1B,
+            "ESCAPE" | "ESC" => 0x1B,
+            "TAB" => 0x09,
+            "UP" => 0x26,
+            "DOWN" => 0x28,
+            "LEFT" => 0x25,
+            "RIGHT" => 0x27,
+            "BACKSPACE" => 0x08,
+            "DELETE" => 0x2E,
+            "CAPSLOCK" | "CAPS" => 0x14,
+            "F1" => 0x70,
+            "F2" => 0x71,
+            "F3" => 0x72,
+            "F4" => 0x73,
+            "F5" => 0x74,
+            "F6" => 0x75,
+            "F7" => 0x76,
+            "F8" => 0x77,
+            "F9" => 0x78,
+            "F10" => 0x79,
+            "F11" => 0x7A,
+            "F12" => 0x7B,
+            s if s.len() == 1 => {
+                let c = s.chars().next().unwrap();
+                if c >= 'A' && c <= 'Z' {
+                    c as u16
+                } else if c >= '0' && c <= '9' {
+                    c as u16
+                } else {
+                    return;
+                }
+            }
             _ => return,
         };
 
@@ -79,8 +84,10 @@ fn send_key_input(key: &str, pressed: bool) {
 use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    EnumChildWindows, GetWindowLongW, SetWindowLongW, SetWindowPos, GWL_EXSTYLE, MA_NOACTIVATE,
-    SWP_FRAMECHANGED, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WM_MOUSEACTIVATE, WS_EX_NOACTIVATE,
+    EnumChildWindows, GetForegroundWindow, GetWindowLongW, SetForegroundWindow, SetWindowLongW,
+    SetWindowPos, GWL_EXSTYLE, HWND_TOPMOST, MA_NOACTIVATE, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WM_MOUSEACTIVATE, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST,
 };
 
 #[cfg(target_os = "windows")]
@@ -104,7 +111,11 @@ unsafe extern "system" fn enum_child_proc(
     _lparam: windows_sys::Win32::Foundation::LPARAM,
 ) -> windows_sys::Win32::Foundation::BOOL {
     let ex_style = GetWindowLongW(child_hwnd, GWL_EXSTYLE);
-    SetWindowLongW(child_hwnd, GWL_EXSTYLE, ex_style | (WS_EX_NOACTIVATE as i32));
+    SetWindowLongW(
+        child_hwnd,
+        GWL_EXSTYLE,
+        ex_style | (WS_EX_NOACTIVATE as i32) | (WS_EX_TOOLWINDOW as i32),
+    );
     SetWindowSubclass(child_hwnd, Some(overlay_subclass_proc), 1, 0);
     1
 }
@@ -116,23 +127,41 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "windows")]
             {
+                let previous_active_hwnd = unsafe { GetForegroundWindow() };
+
                 if let Some(window) = app.get_webview_window("main") {
                     if let Ok(hwnd) = window.hwnd() {
                         let hwnd_ptr = hwnd.0 as windows_sys::Win32::Foundation::HWND;
                         unsafe {
                             let ex_style = GetWindowLongW(hwnd_ptr, GWL_EXSTYLE);
-                            SetWindowLongW(hwnd_ptr, GWL_EXSTYLE, ex_style | (WS_EX_NOACTIVATE as i32));
+                            SetWindowLongW(
+                                hwnd_ptr,
+                                GWL_EXSTYLE,
+                                ex_style
+                                    | (WS_EX_NOACTIVATE as i32)
+                                    | (WS_EX_TOOLWINDOW as i32)
+                                    | (WS_EX_TOPMOST as i32),
+                            );
                             SetWindowPos(
                                 hwnd_ptr,
-                                std::ptr::null_mut(),
+                                HWND_TOPMOST,
                                 0,
                                 0,
                                 0,
                                 0,
-                                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED,
+                                SWP_NOMOVE
+                                    | SWP_NOSIZE
+                                    | SWP_NOACTIVATE
+                                    | SWP_FRAMECHANGED
+                                    | SWP_SHOWWINDOW,
                             );
                             SetWindowSubclass(hwnd_ptr, Some(overlay_subclass_proc), 1, 0);
                             EnumChildWindows(hwnd_ptr, Some(enum_child_proc), 0);
+
+                            // Instantly restore focus to the game/previous active window so user doesn't need to Alt-Tab or press Win key
+                            if !previous_active_hwnd.is_null() && previous_active_hwnd != hwnd_ptr {
+                                SetForegroundWindow(previous_active_hwnd);
+                            }
                         }
                     }
                 }

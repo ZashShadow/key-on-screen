@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 interface JoystickProps {
   size?: number; // Outer diameter in px
   knobSize?: number; // Inner knob diameter in px
+  showTitle?: boolean;
+  title?: string;
 }
 
 // 8-direction sector helper
@@ -23,6 +25,8 @@ function get8DirectionKeys(deg: number): string[] {
 export const Joystick: React.FC<JoystickProps> = ({
   size = 180,
   knobSize = 64,
+  showTitle = true,
+  title = "8-Way Joystick",
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
@@ -111,6 +115,11 @@ export const Joystick: React.FC<JoystickProps> = ({
 
   return (
     <div className="flex flex-col items-center gap-2 select-none">
+      {showTitle && (
+        <span className="text-xs font-semibold text-slate-400 mb-1 tracking-wider uppercase">
+          {title}
+        </span>
+      )}
       {/* Active Keys Badge Indicator */}
       <div className="flex gap-1.5 h-7 items-center justify-center">
         {["W", "A", "S", "D"].map((k) => (
